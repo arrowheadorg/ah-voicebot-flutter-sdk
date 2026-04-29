@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 
-const _serverUrl = 'http://localhost:8000';
+const _serverUrl = 'YOUR_SERVER_URL';
 
 void main() {
   runApp(const MyApp());
@@ -21,9 +21,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'AH Daily SDK Example',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(useMaterial3: true).copyWith(
-        scaffoldBackgroundColor: const Color(0xFF121212),
-      ),
+      theme: ThemeData.dark(
+        useMaterial3: true,
+      ).copyWith(scaffoldBackgroundColor: const Color(0xFF121212)),
       home: const CallPage(),
     );
   }
@@ -53,9 +53,7 @@ class _CallPageState extends State<CallPage> {
   Future<void> _initSdk() async {
     final sdk = await AhDailyFlutterSdk.init(
       fetchRoomDetails: () async {
-        final response = await http.post(
-          Uri.parse('$_serverUrl/room-details'),
-        );
+        final response = await http.post(Uri.parse('$_serverUrl/room-details'));
         if (response.statusCode != 200) {
           throw Exception('Server error: ${response.body}');
         }
@@ -213,10 +211,7 @@ class _CallPageState extends State<CallPage> {
                   SizedBox(height: 2),
                   Text(
                     'Tap to start a voice call',
-                    style: TextStyle(
-                      color: Colors.white38,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: Colors.white38, fontSize: 13),
                   ),
                 ],
               ),
@@ -230,9 +225,7 @@ class _CallPageState extends State<CallPage> {
     return _buildPill(
       child: Row(
         children: [
-          Expanded(
-            child: AudioWaveWidget(isAnimating: _isBotSpeaking),
-          ),
+          Expanded(child: AudioWaveWidget(isAnimating: _isBotSpeaking)),
           const SizedBox(width: 12),
           _buildCircleButton(
             icon: _isMicrophoneEnabled ? Icons.mic : Icons.mic_off,
@@ -268,9 +261,7 @@ class _CallPageState extends State<CallPage> {
         decoration: BoxDecoration(
           color: const Color(0xFF1E1E1E),
           borderRadius: BorderRadius.circular(32),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.08),
-          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
         child: child,
       ),
@@ -288,10 +279,7 @@ class _CallPageState extends State<CallPage> {
       child: Container(
         width: 44,
         height: 44,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         child: Icon(icon, color: iconColor, size: 22),
       ),
     );
