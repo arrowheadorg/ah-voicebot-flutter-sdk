@@ -2,12 +2,16 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:uuid/uuid.dart';
+
 import 'package:ah_daily_flutter_sdk/ah_daily_flutter_sdk.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 
+// ── Configuration ──────────────────────────────────────────────
 const _serverUrl = 'YOUR_SERVER_URL';
+const _customerName = '';
 
 void main() {
   runApp(const MyApp());
@@ -53,7 +57,16 @@ class _CallPageState extends State<CallPage> {
   Future<void> _initSdk() async {
     final sdk = await AhDailyFlutterSdk.init(
       fetchRoomDetails: () async {
-        final response = await http.post(Uri.parse('$_serverUrl/room-details'));
+        final response = await http.post(
+          Uri.parse('$_serverUrl/room-details'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'customer_full_name': _customerName,
+            'external_customer_id': 'flutter-user-${const Uuid().v4().substring(0, 8)}',
+            'external_schedule_id': 'flutter-session-${const Uuid().v4().substring(0, 8)}',
+            'input_variables': {'lead_source': 'app'},
+          }),
+        );
         if (response.statusCode != 200) {
           throw Exception('Server error: ${response.body}');
         }
@@ -104,7 +117,7 @@ class _CallPageState extends State<CallPage> {
   @override
   void dispose() {
     _stateSubscription?.cancel();
-    _sdk?.dispose();
+    _sdk?.disconnect();
     super.dispose();
   }
 

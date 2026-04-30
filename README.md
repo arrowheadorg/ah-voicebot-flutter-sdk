@@ -2,14 +2,6 @@
 
 A Flutter wrapper around the [Daily.co](https://daily.co) SDK for voice-based AI agent calls. Provides a simple, stream-based API for connecting to Daily rooms, managing microphone state, and observing call lifecycle events.
 
-## Features
-
-- Connect/disconnect from Daily voice rooms
-- Mute/unmute microphone
-- Stream-based state management (`AhCallState`)
-- Automatic participant tracking
-- Configurable room details via callback
-
 ## Installation
 
 Add to your `pubspec.yaml`:
@@ -18,6 +10,12 @@ Add to your `pubspec.yaml`:
 dependencies:
   ah_daily_flutter_sdk:
     path: path/to/ah_daily_flutter_sdk
+```
+
+Then run:
+
+```bash
+flutter pub get
 ```
 
 ## Platform Setup
@@ -68,35 +66,258 @@ In `AndroidManifest.xml`, add:
 <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 ```
 
-## Usage
+## Import
+
+```dart
+import 'package:ah_daily_flutter_sdk/ah_daily_flutter_sdk.dart';
+```
+
+This single import gives you access to all public types:
+
+| Type                          | Description                          |
+| ----------------------------- | ------------------------------------ |
+| `AhDailyFlutterSdk`          | Main SDK class                       |
+| `AhCallState`                | Call state model                     |
+| `AhConnectionStatus`         | Connection status enum               |
+| `RoomDetails`                | Room URL + optional token            |
+| `FetchRoomDetails`           | Callback type alias                  |
+| `AhRoomDetailsFetchException`| Thrown when room details fetch fails |
+
+## Quick Start
+
+### 1. Initialize the SDK
 
 ```dart
 final sdk = await AhDailyFlutterSdk.init(
   fetchRoomDetails: () async {
     // Fetch room URL and token from your backend
+    final response = await http.post(Uri.parse('https://your-server.com/room-details'));
+    final json = jsonDecode(response.body);
     return RoomDetails(
-      roomUrl: Uri.parse('https://your-domain.daily.co/room'),
-      token: 'your-token',
+      roomUrl: Uri.parse(json['room_url']),
+      token: json['token'],  // optional
     );
   },
 );
-
-// Listen to state changes
-sdk.stateStream.listen((state) {
-  print('Status: ${state.connectionStatus}');
-});
-
-// Connect and disconnect
-await sdk.connect();
-await sdk.mute();
-await sdk.unmute();
-await sdk.disconnect();
-
-// Clean up
-await sdk.dispose();
 ```
 
-## Example
+The `fetchRoomDetails` callback is called each time `connect()` is invoked, so you get fresh room credentials every call.
+
+### 2. Subscribe to State
+
+```dart
+sdk.stateStream.listen((state) {
+  print('Connection: ${state.connectionStatus}');
+  print('Mic enabled: ${state.isMicrophoneEnabled}');
+  print('Bot speaking: ${state.isBotSpeaking}');
+  print('Participants: ${state.participants?.all.length ?? 0}');
+});
+```
+
+You can also read the current state synchronously:
+
+```dart
+final state = sdk.currentState;
+```
+
+### 3. Connect
+
+```dart
+await sdk.connect();
+```
+
+### 4. Control Microphone
+
+```dart
+await sdk.mute();
+await sdk.unmute();
+```
+
+### 5. Disconnect
+
+```dart
+await sdk.disconnect();
+```
+
+## API Reference
+
+### `AhDailyFlutterSdk`
+
+#### Factory
+
+| Method | Description |
+| --- | --- |
+| `static Future<AhDailyFlutterSdk> init({required FetchRoomDetails fetchRoomDetails})` | Creates and initializes the SDK. The `fetchRoomDetails` callback provides room credentials when `connect()` is called. |
+
+#### Properties
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `stateStream` | `Stream<AhCallState>` | Broadcast stream that emits on every state change. Supports multiple listeners. |
+| `currentState` | `AhCallState` | Current state snapshot (synchronous). |
+
+#### Methods
+
+| Method | Return Type | Description |
+| --- | --- | --- |
+| `connect()` | `Future<void>` | Calls `fetchRoomDetails`, then joins the Daily room. Camera is disabled by default. Throws `AhRoomDetailsFetchException` if the callback fails. |
+| `disconnect()` | `Future<void>` | Leaves the Daily room, cancels event listeners, disposes the internal client, and closes the state stream. After calling this, you need to call `AhDailyFlutterSdk.init()` again to start a new session. |
+| `mute()` | `Future<void>` | Disables the microphone. |
+| `unmute()` | `Future<void>` | Enables the microphone. |
+
+### `AhCallState`
+
+Immutable state object emitted by `stateStream`.
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `connectionStatus` | `AhConnectionStatus` | `disconnected` | Current connection status. |
+| `participants` | `Participants?` | `null` | All participants in the call (from Daily SDK). |
+| `inputs` | `InputSettings?` | `null` | Current input device settings (from Daily SDK). |
+| `isMicrophoneEnabled` | `bool` | `true` | Whether the local microphone is enabled. |
+| `isBotSpeaking` | `bool` | `false` | Whether a remote participant (bot) is the active speaker. |
+
+### `AhConnectionStatus`
+
+```dart
+enum AhConnectionStatus {
+  disconnected,  // Not in a call
+  connecting,    // Joining a room
+  connected,     // In a call
+  disconnecting, // Leaving a room
+}
+```
+
+### `RoomDetails`
+
+```dart
+RoomDetails({
+  required Uri roomUrl,  // Daily.co room URL
+  String? token,         // Optional authentication token
+})
+```
+
+### `AhRoomDetailsFetchException`
+
+Thrown when the `fetchRoomDetails` callback fails. Contains the original error as `cause` and the `stackTrace`.
+
+```dart
+try {
+  await sdk.connect();
+} on AhRoomDetailsFetchException catch (e) {
+  print('Failed to get room details: ${e.cause}');
+}
+```
+
+## Full Example with Flutter
+
+```dart
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:ah_daily_flutter_sdk/ah_daily_flutter_sdk.dart';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
+
+class CallPage extends StatefulWidget {
+  const CallPage({super.key});
+
+  @override
+  State<CallPage> createState() => _CallPageState();
+}
+
+class _CallPageState extends State<CallPage> {
+  AhDailyFlutterSdk? _sdk;
+  StreamSubscription<AhCallState>? _sub;
+  AhConnectionStatus _status = AhConnectionStatus.disconnected;
+  bool _isMicEnabled = true;
+  bool _isBotSpeaking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initSdk();
+  }
+
+  Future<void> _initSdk() async {
+    final sdk = await AhDailyFlutterSdk.init(
+      fetchRoomDetails: () async {
+        final res = await http.post(
+          Uri.parse('https://your-server.com/room-details'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'customer_name': 'John'}),
+        );
+        final json = jsonDecode(res.body);
+        return RoomDetails(
+          roomUrl: Uri.parse(json['room_url']),
+          token: json['token'],
+        );
+      },
+    );
+
+    _sub = sdk.stateStream.listen((state) {
+      setState(() {
+        _status = state.connectionStatus;
+        _isMicEnabled = state.isMicrophoneEnabled;
+        _isBotSpeaking = state.isBotSpeaking;
+      });
+    });
+
+    setState(() => _sdk = sdk);
+  }
+
+  Future<void> _connect() async {
+    final mic = await Permission.microphone.request();
+    if (!mic.isGranted) return;
+    await _sdk?.connect();
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    _sdk?.disconnect();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isConnected = _status == AhConnectionStatus.connected;
+
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Status: $_status'),
+            Text('Bot speaking: $_isBotSpeaking'),
+            const SizedBox(height: 20),
+            if (!isConnected)
+              ElevatedButton(
+                onPressed: _connect,
+                child: const Text('Connect'),
+              )
+            else ...[
+              ElevatedButton(
+                onPressed: () => _sdk?.disconnect(),
+                child: const Text('Disconnect'),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () =>
+                    _isMicEnabled ? _sdk?.mute() : _sdk?.unmute(),
+                child: Text(_isMicEnabled ? 'Mute' : 'Unmute'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+## Example App
 
 See the [example app](example/) for a complete working demo with a FastAPI backend.
 

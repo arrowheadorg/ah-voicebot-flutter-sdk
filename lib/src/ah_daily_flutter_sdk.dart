@@ -70,6 +70,11 @@ class AhDailyFlutterSdk {
     );
 
     await _callClient!.leave();
+    await _eventSubscription?.cancel();
+    await _callClient?.dispose();
+    _callClient = null;
+    _updateState(const AhCallState());
+    await _stateController.close();
   }
 
   Future<void> mute() async {
@@ -78,14 +83,6 @@ class AhDailyFlutterSdk {
 
   Future<void> unmute() async {
     await _callClient?.setInputsEnabled(microphone: true);
-  }
-
-  Future<void> dispose() async {
-    await _eventSubscription?.cancel();
-    await _callClient?.dispose();
-    _callClient = null;
-    _updateState(const AhCallState());
-    await _stateController.close();
   }
 
   Future<void> _createClient() async {
