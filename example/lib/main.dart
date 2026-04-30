@@ -62,8 +62,10 @@ class _CallPageState extends State<CallPage> {
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'customer_full_name': _customerName,
-            'external_customer_id': 'flutter-user-${const Uuid().v4().substring(0, 8)}',
-            'external_schedule_id': 'flutter-session-${const Uuid().v4().substring(0, 8)}',
+            'external_customer_id':
+                'flutter-user-${const Uuid().v4().substring(0, 8)}',
+            'external_schedule_id':
+                'flutter-session-${const Uuid().v4().substring(0, 8)}',
             'input_variables': {'lead_source': 'app'},
           }),
         );
@@ -71,10 +73,7 @@ class _CallPageState extends State<CallPage> {
           throw Exception('Server error: ${response.body}');
         }
         final json = jsonDecode(response.body);
-        return RoomDetails(
-          roomUrl: Uri.parse(json['room_url']),
-          token: json['token'],
-        );
+        return json['data'] as String;
       },
     );
 

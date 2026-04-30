@@ -35,9 +35,9 @@ class AhDailyFlutterSdk {
       _currentState.copyWith(connectionStatus: AhConnectionStatus.connecting),
     );
 
-    final RoomDetails roomDetails;
+    final String encoded;
     try {
-      roomDetails = await _fetchRoomDetails();
+      encoded = await _fetchRoomDetails();
     } catch (e, st) {
       _updateState(
         _currentState.copyWith(
@@ -46,6 +46,8 @@ class AhDailyFlutterSdk {
       );
       throw AhRoomDetailsFetchException(e, st);
     }
+
+    final roomDetails = RoomDetails.decode(encoded);
 
     await _callClient!.join(
       url: roomDetails.roomUrl,

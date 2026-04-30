@@ -1,3 +1,5 @@
+import base64
+import json
 import os
 import uuid
 from typing import Any, Dict, Optional
@@ -27,7 +29,11 @@ class CreateRoomDetailsRequest(BaseModel):
     encryption_secret_name: str = "default"
 
 
-@app.post("/room-details")
+class CreateRoomDetailsResponse(BaseModel):
+    data: str = Field(description="Base64url-encoded room details")
+
+
+@app.post("/room-details", response_model=CreateRoomDetailsResponse)
 async def room_details(body: Optional[CreateRoomDetailsRequest] = None):
     if body is None:
         body = CreateRoomDetailsRequest(
@@ -51,4 +57,8 @@ async def room_details(body: Optional[CreateRoomDetailsRequest] = None):
     if resp.status_code != 200:
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
-    return resp.json()
+    data = resp.json()
+    encoded = base64.urlsafe_b64encode(
+        json.dumps({"room_url": data["room_url"], "token": data["token"]}).encode()
+    ).decode()
+    return {"data": encoded}

@@ -39,7 +39,6 @@ In the `post_install` block, enable permissions:
 ```ruby
 config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
   '$(inherited)',
-  'PERMISSION_CAMERA=1',
   'PERMISSION_MICROPHONE=1',
 ]
 ```
@@ -49,8 +48,6 @@ Add to `Info.plist`:
 ```xml
 <key>NSMicrophoneUsageDescription</key>
 <string>Microphone access is needed for voice calls.</string>
-<key>NSCameraUsageDescription</key>
-<string>Camera access is needed for video calls.</string>
 ```
 
 ### Android
@@ -61,7 +58,6 @@ In `AndroidManifest.xml`, add:
 
 ```xml
 <uses-permission android:name="android.permission.INTERNET" />
-<uses-permission android:name="android.permission.CAMERA" />
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
 <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 ```
@@ -79,7 +75,6 @@ This single import gives you access to all public types:
 | `AhDailyFlutterSdk`          | Main SDK class                       |
 | `AhCallState`                | Call state model                     |
 | `AhConnectionStatus`         | Connection status enum               |
-| `RoomDetails`                | Room URL + optional token            |
 | `FetchRoomDetails`           | Callback type alias                  |
 | `AhRoomDetailsFetchException`| Thrown when room details fetch fails |
 
@@ -90,18 +85,15 @@ This single import gives you access to all public types:
 ```dart
 final sdk = await AhDailyFlutterSdk.init(
   fetchRoomDetails: () async {
-    // Fetch room URL and token from your backend
+    // Fetch encoded data from your backend
     final response = await http.post(Uri.parse('https://your-server.com/room-details'));
     final json = jsonDecode(response.body);
-    return RoomDetails(
-      roomUrl: Uri.parse(json['room_url']),
-      token: json['token'],  // optional
-    );
+    return json['data'] as String;
   },
 );
 ```
 
-The `fetchRoomDetails` callback is called each time `connect()` is invoked, so you get fresh room credentials every call.
+The `fetchRoomDetails` callback is called each time `connect()` is invoked. Your backend should return a base64url-encoded string containing the room details — the SDK decodes it internally.
 
 ### 2. Subscribe to State
 
@@ -160,7 +152,7 @@ await sdk.disconnect();
 
 | Method | Return Type | Description |
 | --- | --- | --- |
-| `connect()` | `Future<void>` | Calls `fetchRoomDetails`, then joins the Daily room. Camera is disabled by default. Throws `AhRoomDetailsFetchException` if the callback fails. |
+| `connect()` | `Future<void>` | Calls `fetchRoomDetails`, decodes the response, then joins the Daily room. Camera is disabled by default. Throws `AhRoomDetailsFetchException` if the callback fails. |
 | `disconnect()` | `Future<void>` | Leaves the Daily room, cancels event listeners, disposes the internal client, and closes the state stream. After calling this, you need to call `AhDailyFlutterSdk.init()` again to start a new session. |
 | `mute()` | `Future<void>` | Disables the microphone. |
 | `unmute()` | `Future<void>` | Enables the microphone. |
@@ -186,15 +178,6 @@ enum AhConnectionStatus {
   connected,     // In a call
   disconnecting, // Leaving a room
 }
-```
-
-### `RoomDetails`
-
-```dart
-RoomDetails({
-  required Uri roomUrl,  // Daily.co room URL
-  String? token,         // Optional authentication token
-})
 ```
 
 ### `AhRoomDetailsFetchException`
@@ -249,10 +232,7 @@ class _CallPageState extends State<CallPage> {
           body: jsonEncode({'customer_name': 'John'}),
         );
         final json = jsonDecode(res.body);
-        return RoomDetails(
-          roomUrl: Uri.parse(json['room_url']),
-          token: json['token'],
-        );
+        return json['data'] as String;
       },
     );
 
