@@ -4,7 +4,7 @@ import 'dart:math';
 
 import 'package:uuid/uuid.dart';
 
-import 'package:ah_daily_flutter_sdk/ah_daily_flutter_sdk.dart';
+import 'package:ah_flutter_sdk/ah_flutter_sdk.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'AH Daily SDK Example',
+      title: 'AH SDK Example',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(
         useMaterial3: true,
@@ -41,7 +41,7 @@ class CallPage extends StatefulWidget {
 }
 
 class _CallPageState extends State<CallPage> {
-  AhDailyFlutterSdk? _sdk;
+  AhFlutterSdk? _sdk;
   StreamSubscription<AhCallState>? _stateSubscription;
   AhConnectionStatus _status = AhConnectionStatus.disconnected;
   bool _isMicrophoneEnabled = true;
@@ -55,10 +55,10 @@ class _CallPageState extends State<CallPage> {
   }
 
   Future<void> _initSdk() async {
-    final sdk = await AhDailyFlutterSdk.init(
-      fetchRoomDetails: () async {
+    final sdk = await AhFlutterSdk.init(
+      fetchCallConfig: () async {
         final response = await http.post(
-          Uri.parse('$_serverUrl/room-details'),
+          Uri.parse('$_serverUrl/call-config'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'customer_full_name': _customerName,

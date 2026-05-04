@@ -1,5 +1,5 @@
 name: example
-description: "Example app for ah_daily_flutter_sdk."
+description: "Example app for ah_flutter_sdk."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  ah_daily_flutter_sdk:
+  ah_flutter_sdk:
     path: ../
   http: ^1.6.0
   permission_handler: ^11.4.0

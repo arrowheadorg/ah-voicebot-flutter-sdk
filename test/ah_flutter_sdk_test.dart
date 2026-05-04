@@ -2,15 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ah_daily_flutter_sdk/ah_daily_flutter_sdk.dart';
-import 'package:ah_daily_flutter_sdk/src/room_details.dart';
+import 'package:ah_flutter_sdk/ah_flutter_sdk.dart';
+import 'package:ah_flutter_sdk/src/call_config.dart';
 
 void main() {
   test('AhCallState defaults to disconnected', () {
     const state = AhCallState();
     expect(state.connectionStatus, AhConnectionStatus.disconnected);
-    expect(state.participants, isNull);
-    expect(state.inputs, isNull);
+    expect(state.participants, isEmpty);
   });
 
   test('AhCallState copyWith updates connectionStatus', () {
@@ -21,35 +20,35 @@ void main() {
     expect(updated.connectionStatus, AhConnectionStatus.connecting);
   });
 
-  test('RoomDetails.decode decodes base64url-encoded credentials', () {
+  test('CallConfig.decode decodes base64url-encoded credentials', () {
     final json = {'room_url': 'https://example.daily.co/test-room', 'token': 'abc123'};
     final encoded = base64Url.encode(utf8.encode(jsonEncode(json)));
 
-    final details = RoomDetails.decode(encoded);
-    expect(details.roomUrl, Uri.parse('https://example.daily.co/test-room'));
-    expect(details.token, 'abc123');
+    final config = CallConfig.decode(encoded);
+    expect(config.url, Uri.parse('https://example.daily.co/test-room'));
+    expect(config.credential, 'abc123');
   });
 
-  test('RoomDetails.decode handles null token', () {
+  test('CallConfig.decode handles missing credential', () {
     final json = {'room_url': 'https://example.daily.co/test-room'};
     final encoded = base64Url.encode(utf8.encode(jsonEncode(json)));
 
-    final details = RoomDetails.decode(encoded);
-    expect(details.roomUrl, Uri.parse('https://example.daily.co/test-room'));
-    expect(details.token, isNull);
+    final config = CallConfig.decode(encoded);
+    expect(config.url, Uri.parse('https://example.daily.co/test-room'));
+    expect(config.credential, isNull);
   });
 
-  test('RoomDetails toString redacts token', () {
+  test('CallConfig toString redacts credential', () {
     final json = {'room_url': 'https://example.daily.co/test-room', 'token': 'secret-token'};
     final encoded = base64Url.encode(utf8.encode(jsonEncode(json)));
 
-    final details = RoomDetails.decode(encoded);
-    expect(details.toString(), contains('***'));
-    expect(details.toString(), isNot(contains('secret-token')));
+    final config = CallConfig.decode(encoded);
+    expect(config.toString(), contains('***'));
+    expect(config.toString(), isNot(contains('secret-token')));
   });
 
-  test('AhRoomDetailsFetchException wraps cause', () {
-    final exception = AhRoomDetailsFetchException(
+  test('AhCallConfigFetchException wraps cause', () {
+    final exception = AhCallConfigFetchException(
       'network error',
       StackTrace.current,
     );

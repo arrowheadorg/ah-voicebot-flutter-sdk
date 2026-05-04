@@ -1,13 +1,14 @@
 import 'dart:async';
 
-import 'package:daily_flutter/daily_flutter.dart';
+import 'package:daily_flutter/daily_flutter.dart' hide CallConfig;
 import 'package:flutter/foundation.dart';
 
 import 'ah_call_state.dart';
-import 'room_details.dart';
+import 'ah_participant.dart';
+import 'call_config.dart';
 
-class AhDailyFlutterSdk {
-  final FetchRoomDetails _fetchRoomDetails;
+class AhFlutterSdk {
+  final FetchCallConfig _fetchCallConfig;
 
   CallClient? _callClient;
   StreamSubscription<Event>? _eventSubscription;
@@ -15,13 +16,13 @@ class AhDailyFlutterSdk {
   final _stateController = StreamController<AhCallState>.broadcast();
   AhCallState _currentState = const AhCallState();
 
-  AhDailyFlutterSdk._({required FetchRoomDetails fetchRoomDetails})
-    : _fetchRoomDetails = fetchRoomDetails;
+  AhFlutterSdk._({required FetchCallConfig fetchCallConfig})
+    : _fetchCallConfig = fetchCallConfig;
 
-  static Future<AhDailyFlutterSdk> init({
-    required FetchRoomDetails fetchRoomDetails,
+  static Future<AhFlutterSdk> init({
+    required FetchCallConfig fetchCallConfig,
   }) async {
-    final sdk = AhDailyFlutterSdk._(fetchRoomDetails: fetchRoomDetails);
+    final sdk = AhFlutterSdk._(fetchCallConfig: fetchCallConfig);
     await sdk._createClient();
     return sdk;
   }
@@ -37,21 +38,21 @@ class AhDailyFlutterSdk {
 
     final String encoded;
     try {
-      encoded = await _fetchRoomDetails();
+      encoded = await _fetchCallConfig();
     } catch (e, st) {
       _updateState(
         _currentState.copyWith(
           connectionStatus: AhConnectionStatus.disconnected,
         ),
       );
-      throw AhRoomDetailsFetchException(e, st);
+      throw AhCallConfigFetchException(e, st);
     }
 
-    final roomDetails = RoomDetails.decode(encoded);
+    final config = CallConfig.decode(encoded);
 
     await _callClient!.join(
-      url: roomDetails.roomUrl,
-      token: roomDetails.token,
+      url: config.url,
+      token: config.credential,
       clientSettings: const ClientSettingsUpdate.set(
         inputs: InputSettingsUpdate.set(
           camera: CameraInputSettingsUpdate.set(
@@ -96,7 +97,7 @@ class AhDailyFlutterSdk {
     _eventSubscription = _callClient!.events.listen((event) {
       event.maybeWhen(
         callStateUpdated: (stateData) {
-          debugPrint('[Daily] callStateUpdated: ${stateData.state}');
+          debugPrint('[AH] callStateUpdated: ${stateData.state}');
           _updateState(
             _currentState.copyWith(
               connectionStatus: _mapCallState(stateData.state),
@@ -105,27 +106,26 @@ class AhDailyFlutterSdk {
         },
         participantJoined: (participant) {
           debugPrint(
-            '[Daily] participantJoined: ${participant.id}, isLocal=${participant.info.isLocal}',
+            '[AH] participantJoined: ${participant.id}, isLocal=${participant.info.isLocal}',
           );
           _syncParticipants();
         },
         participantUpdated: (participant) {
           debugPrint(
-            '[Daily] participantUpdated: ${participant.id}, audio=${participant.media?.microphone.state}',
+            '[AH] participantUpdated: ${participant.id}, audio=${participant.media?.microphone.state}',
           );
           _syncParticipants();
         },
         participantLeft: (participant) {
-          debugPrint('[Daily] participantLeft: ${participant.id}');
+          debugPrint('[AH] participantLeft: ${participant.id}');
           _syncParticipants();
         },
         inputsUpdated: (inputs) {
           debugPrint(
-            '[Daily] inputsUpdated: mic=${inputs.microphone.isEnabled}, camera=${inputs.camera.isEnabled}',
+            '[AH] inputsUpdated: mic=${inputs.microphone.isEnabled}, camera=${inputs.camera.isEnabled}',
           );
           _updateState(
             _currentState.copyWith(
-              inputs: inputs,
               isMicrophoneEnabled: inputs.microphone.isEnabled,
             ),
           );
@@ -134,12 +134,12 @@ class AhDailyFlutterSdk {
           final isBotSpeaking =
               participant != null && !participant.info.isLocal;
           debugPrint(
-            '[Daily] activeSpeakerChanged: isBotSpeaking=$isBotSpeaking',
+            '[AH] activeSpeakerChanged: isBotSpeaking=$isBotSpeaking',
           );
           _updateState(_currentState.copyWith(isBotSpeaking: isBotSpeaking));
         },
         error: (message) {
-          debugPrint('[Daily] error: $message');
+          debugPrint('[AH] error: $message');
         },
         orElse: () {},
       );
@@ -148,9 +148,15 @@ class AhDailyFlutterSdk {
 
   void _syncParticipants() {
     if (_callClient == null) return;
-    _updateState(
-      _currentState.copyWith(participants: _callClient!.participants),
-    );
+    final dailyParticipants = _callClient!.participants;
+    final ahParticipants =
+        dailyParticipants.all.entries.map((entry) {
+          return AhParticipant(
+            id: entry.key.id,
+            isLocal: entry.value.info.isLocal,
+          );
+        }).toList();
+    _updateState(_currentState.copyWith(participants: ahParticipants));
   }
 
   void _updateState(AhCallState newState) {

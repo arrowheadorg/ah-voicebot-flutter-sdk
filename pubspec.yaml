@@ -1,5 +1,5 @@
-name: ah_daily_flutter_sdk
-description: "A Flutter wrapper around the Daily.co SDK for voice-based AI agent calls."
+name: ah_flutter_sdk
+description: "A Flutter SDK for Arrowhead voice-based AI agent calls."
 version: 0.0.1
 
 environment:

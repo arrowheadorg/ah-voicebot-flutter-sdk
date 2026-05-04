@@ -1,6 +1,6 @@
-# ah_daily_flutter_sdk
+# ah_flutter_sdk
 
-A Flutter wrapper around the [Daily.co](https://daily.co) SDK for voice-based AI agent calls. Provides a simple, stream-based API for connecting to Daily rooms, managing microphone state, and observing call lifecycle events.
+A Flutter SDK for Arrowhead voice-based AI agent calls. Provides a simple, stream-based API for connecting to calls, managing microphone state, and observing call lifecycle events.
 
 ## Installation
 
@@ -8,8 +8,8 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  ah_daily_flutter_sdk:
-    path: path/to/ah_daily_flutter_sdk
+  ah_flutter_sdk:
+    path: path/to/ah_flutter_sdk
 ```
 
 Then run:
@@ -65,35 +65,36 @@ In `AndroidManifest.xml`, add:
 ## Import
 
 ```dart
-import 'package:ah_daily_flutter_sdk/ah_daily_flutter_sdk.dart';
+import 'package:ah_flutter_sdk/ah_flutter_sdk.dart';
 ```
 
 This single import gives you access to all public types:
 
 | Type                          | Description                          |
 | ----------------------------- | ------------------------------------ |
-| `AhDailyFlutterSdk`          | Main SDK class                       |
+| `AhFlutterSdk`               | Main SDK class                       |
 | `AhCallState`                | Call state model                     |
 | `AhConnectionStatus`         | Connection status enum               |
-| `FetchRoomDetails`           | Callback type alias                  |
-| `AhRoomDetailsFetchException`| Thrown when room details fetch fails |
+| `AhParticipant`              | Participant model                    |
+| `FetchCallConfig`            | Callback type alias                  |
+| `AhCallConfigFetchException` | Thrown when call config fetch fails   |
 
 ## Quick Start
 
 ### 1. Initialize the SDK
 
 ```dart
-final sdk = await AhDailyFlutterSdk.init(
-  fetchRoomDetails: () async {
-    // Fetch encoded data from your backend
-    final response = await http.post(Uri.parse('https://your-server.com/room-details'));
+final sdk = await AhFlutterSdk.init(
+  fetchCallConfig: () async {
+    // Fetch encoded config from your backend
+    final response = await http.post(Uri.parse('https://your-server.com/call-config'));
     final json = jsonDecode(response.body);
     return json['data'] as String;
   },
 );
 ```
 
-The `fetchRoomDetails` callback is called each time `connect()` is invoked. Your backend should return a base64url-encoded string containing the room details — the SDK decodes it internally.
+The `fetchCallConfig` callback is called each time `connect()` is invoked. Your backend should return a base64url-encoded string containing the call configuration — the SDK decodes it internally.
 
 ### 2. Subscribe to State
 
@@ -102,7 +103,7 @@ sdk.stateStream.listen((state) {
   print('Connection: ${state.connectionStatus}');
   print('Mic enabled: ${state.isMicrophoneEnabled}');
   print('Bot speaking: ${state.isBotSpeaking}');
-  print('Participants: ${state.participants?.all.length ?? 0}');
+  print('Participants: ${state.participants.length}');
 });
 ```
 
@@ -133,13 +134,13 @@ await sdk.disconnect();
 
 ## API Reference
 
-### `AhDailyFlutterSdk`
+### `AhFlutterSdk`
 
 #### Factory
 
 | Method | Description |
 | --- | --- |
-| `static Future<AhDailyFlutterSdk> init({required FetchRoomDetails fetchRoomDetails})` | Creates and initializes the SDK. The `fetchRoomDetails` callback provides room credentials when `connect()` is called. |
+| `static Future<AhFlutterSdk> init({required FetchCallConfig fetchCallConfig})` | Creates and initializes the SDK. The `fetchCallConfig` callback provides call credentials when `connect()` is called. |
 
 #### Properties
 
@@ -152,8 +153,8 @@ await sdk.disconnect();
 
 | Method | Return Type | Description |
 | --- | --- | --- |
-| `connect()` | `Future<void>` | Calls `fetchRoomDetails`, decodes the response, then joins the Daily room. Camera is disabled by default. Throws `AhRoomDetailsFetchException` if the callback fails. |
-| `disconnect()` | `Future<void>` | Leaves the Daily room, cancels event listeners, disposes the internal client, and closes the state stream. After calling this, you need to call `AhDailyFlutterSdk.init()` again to start a new session. |
+| `connect()` | `Future<void>` | Calls `fetchCallConfig`, decodes the response, then joins the call. Camera is disabled by default. Throws `AhCallConfigFetchException` if the callback fails. |
+| `disconnect()` | `Future<void>` | Leaves the call, cancels event listeners, disposes the internal client, and closes the state stream. After calling this, you need to call `AhFlutterSdk.init()` again to start a new session. |
 | `mute()` | `Future<void>` | Disables the microphone. |
 | `unmute()` | `Future<void>` | Enables the microphone. |
 
@@ -164,31 +165,39 @@ Immutable state object emitted by `stateStream`.
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `connectionStatus` | `AhConnectionStatus` | `disconnected` | Current connection status. |
-| `participants` | `Participants?` | `null` | All participants in the call (from Daily SDK). |
-| `inputs` | `InputSettings?` | `null` | Current input device settings (from Daily SDK). |
+| `participants` | `List<AhParticipant>` | `[]` | All participants in the call. |
 | `isMicrophoneEnabled` | `bool` | `true` | Whether the local microphone is enabled. |
 | `isBotSpeaking` | `bool` | `false` | Whether a remote participant (bot) is the active speaker. |
+
+### `AhParticipant`
+
+Represents a participant in the call.
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `id` | `String` | Unique participant identifier. |
+| `isLocal` | `bool` | Whether this is the local user. |
 
 ### `AhConnectionStatus`
 
 ```dart
 enum AhConnectionStatus {
   disconnected,  // Not in a call
-  connecting,    // Joining a room
+  connecting,    // Joining a call
   connected,     // In a call
-  disconnecting, // Leaving a room
+  disconnecting, // Leaving a call
 }
 ```
 
-### `AhRoomDetailsFetchException`
+### `AhCallConfigFetchException`
 
-Thrown when the `fetchRoomDetails` callback fails. Contains the original error as `cause` and the `stackTrace`.
+Thrown when the `fetchCallConfig` callback fails. Contains the original error as `cause` and the `stackTrace`.
 
 ```dart
 try {
   await sdk.connect();
-} on AhRoomDetailsFetchException catch (e) {
-  print('Failed to get room details: ${e.cause}');
+} on AhCallConfigFetchException catch (e) {
+  print('Failed to get call config: ${e.cause}');
 }
 ```
 
@@ -198,7 +207,7 @@ try {
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:ah_daily_flutter_sdk/ah_daily_flutter_sdk.dart';
+import 'package:ah_flutter_sdk/ah_flutter_sdk.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
@@ -211,7 +220,7 @@ class CallPage extends StatefulWidget {
 }
 
 class _CallPageState extends State<CallPage> {
-  AhDailyFlutterSdk? _sdk;
+  AhFlutterSdk? _sdk;
   StreamSubscription<AhCallState>? _sub;
   AhConnectionStatus _status = AhConnectionStatus.disconnected;
   bool _isMicEnabled = true;
@@ -224,10 +233,10 @@ class _CallPageState extends State<CallPage> {
   }
 
   Future<void> _initSdk() async {
-    final sdk = await AhDailyFlutterSdk.init(
-      fetchRoomDetails: () async {
+    final sdk = await AhFlutterSdk.init(
+      fetchCallConfig: () async {
         final res = await http.post(
-          Uri.parse('https://your-server.com/room-details'),
+          Uri.parse('https://your-server.com/call-config'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'customer_name': 'John'}),
         );
@@ -303,4 +312,4 @@ See the [example app](example/) for a complete working demo with a FastAPI backe
 
 ## Server
 
-The `server/` directory contains a FastAPI backend that proxies room creation. Copy `server/.env.example` to `server/.env` and fill in your credentials.
+The `server/` directory contains a FastAPI backend that proxies call setup. Copy `server/.env.example` to `server/.env` and fill in your credentials.
