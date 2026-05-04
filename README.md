@@ -86,15 +86,17 @@ This single import gives you access to all public types:
 ```dart
 final sdk = await AhFlutterSdk.init(
   fetchCallConfig: () async {
-    // Fetch encoded config from your backend
-    final response = await http.post(Uri.parse('https://your-server.com/call-config'));
-    final json = jsonDecode(response.body);
-    return json['data'] as String;
+    // Call your backend, which calls the Arrowhead API
+    // and returns the config string
+    final response = await http.post(
+      Uri.parse('https://your-api.com/call-config'),
+    );
+    return response.body;
   },
 );
 ```
 
-The `fetchCallConfig` callback is called each time `connect()` is invoked. Your backend should return a base64url-encoded string containing the call configuration — the SDK decodes it internally.
+The `fetchCallConfig` callback is called each time `connect()` is invoked. Your backend should call the Arrowhead API and return the config string as-is — the SDK handles the rest.
 
 ### 2. Subscribe to State
 
@@ -140,7 +142,7 @@ await sdk.disconnect();
 
 | Method | Description |
 | --- | --- |
-| `static Future<AhFlutterSdk> init({required FetchCallConfig fetchCallConfig})` | Creates and initializes the SDK. The `fetchCallConfig` callback provides call credentials when `connect()` is called. |
+| `static Future<AhFlutterSdk> init({required FetchCallConfig fetchCallConfig})` | Creates and initializes the SDK. The `fetchCallConfig` callback provides the call config when `connect()` is called. |
 
 #### Properties
 
@@ -153,8 +155,8 @@ await sdk.disconnect();
 
 | Method | Return Type | Description |
 | --- | --- | --- |
-| `connect()` | `Future<void>` | Calls `fetchCallConfig`, decodes the response, then joins the call. Camera is disabled by default. Throws `AhCallConfigFetchException` if the callback fails. |
-| `disconnect()` | `Future<void>` | Leaves the call, cancels event listeners, disposes the internal client, and closes the state stream. After calling this, you need to call `AhFlutterSdk.init()` again to start a new session. |
+| `connect()` | `Future<void>` | Calls `fetchCallConfig` and joins the call. Throws `AhCallConfigFetchException` if the callback fails. |
+| `disconnect()` | `Future<void>` | Leaves the call and cleans up resources. After calling this, you need to call `AhFlutterSdk.init()` again to start a new session. |
 | `mute()` | `Future<void>` | Disables the microphone. |
 | `unmute()` | `Future<void>` | Enables the microphone. |
 
@@ -201,11 +203,10 @@ try {
 }
 ```
 
-## Full Example with Flutter
+## Full Example
 
 ```dart
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:ah_flutter_sdk/ah_flutter_sdk.dart';
 import 'package:flutter/material.dart';
@@ -236,12 +237,9 @@ class _CallPageState extends State<CallPage> {
     final sdk = await AhFlutterSdk.init(
       fetchCallConfig: () async {
         final res = await http.post(
-          Uri.parse('https://your-server.com/call-config'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'customer_name': 'John'}),
+          Uri.parse('https://your-api.com/call-config'),
         );
-        final json = jsonDecode(res.body);
-        return json['data'] as String;
+        return res.body;
       },
     );
 
@@ -305,11 +303,3 @@ class _CallPageState extends State<CallPage> {
   }
 }
 ```
-
-## Example App
-
-See the [example app](example/) for a complete working demo with a FastAPI backend.
-
-## Server
-
-The `server/` directory contains a FastAPI backend that proxies call setup. Copy `server/.env.example` to `server/.env` and fill in your credentials.
