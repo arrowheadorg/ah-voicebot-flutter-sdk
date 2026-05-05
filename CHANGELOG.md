@@ -2,8 +2,8 @@
 
 - **BREAKING:** Renamed package from `ah_daily_flutter_sdk` to `ah_flutter_sdk`
 - **BREAKING:** Renamed `AhDailyFlutterSdk` class to `AhFlutterSdk`
-- **BREAKING:** Renamed `FetchRoomDetails` to `FetchCallConfig`
-- **BREAKING:** Renamed `AhRoomDetailsFetchException` to `AhCallConfigFetchException`
+- **BREAKING:** Renamed `FetchRoomDetails` to `FetchCallInit`
+- **BREAKING:** Renamed `AhRoomDetailsFetchException` to `AhCallInitFetchException`
 - **BREAKING:** Replaced `Participants?` (Daily SDK type) with `List<AhParticipant>` in `AhCallState`
 - **BREAKING:** Removed `InputSettings? inputs` from `AhCallState` (use `isMicrophoneEnabled` instead)
 - Added `AhParticipant` model class

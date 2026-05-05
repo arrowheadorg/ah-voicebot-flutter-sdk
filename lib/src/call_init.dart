@@ -1,18 +1,18 @@
 import 'dart:convert';
 
-class CallConfig {
+class CallInit {
   final Uri _url;
   final String? _credential;
 
-  const CallConfig._({required Uri url, String? credential})
+  const CallInit._({required Uri url, String? credential})
     : _url = url,
       _credential = credential;
 
-  factory CallConfig.decode(String encoded) {
+  factory CallInit.decode(String encoded) {
     final json = jsonDecode(
       utf8.decode(base64Url.decode(base64Url.normalize(encoded))),
     ) as Map<String, dynamic>;
-    return CallConfig._(
+    return CallInit._(
       url: Uri.parse(json['room_url'] as String),
       credential: json['token'] as String?,
     );
@@ -23,18 +23,18 @@ class CallConfig {
 
   @override
   String toString() =>
-      'CallConfig(url: $_url, credential: ${_credential != null ? '***' : 'null'})';
+      'CallInit(url: $_url, credential: ${_credential != null ? '***' : 'null'})';
 }
 
-typedef FetchCallConfig = Future<String> Function();
+typedef FetchCallInit = Future<String> Function();
 
-class AhCallConfigFetchException implements Exception {
+class AhCallInitFetchException implements Exception {
   final Object cause;
   final StackTrace stackTrace;
 
-  const AhCallConfigFetchException(this.cause, this.stackTrace);
+  const AhCallInitFetchException(this.cause, this.stackTrace);
 
   @override
   String toString() =>
-      'AhCallConfigFetchException: Failed to fetch call config. Cause: $cause';
+      'AhCallInitFetchException: Failed to initiate call. Cause: $cause';
 }

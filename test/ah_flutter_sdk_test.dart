@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ah_flutter_sdk/ah_flutter_sdk.dart';
-import 'package:ah_flutter_sdk/src/call_config.dart';
+import 'package:ah_flutter_sdk/src/call_init.dart';
 
 void main() {
   test('AhCallState defaults to disconnected', () {
@@ -20,35 +20,35 @@ void main() {
     expect(updated.connectionStatus, AhConnectionStatus.connecting);
   });
 
-  test('CallConfig.decode decodes base64url-encoded credentials', () {
+  test('CallInit.decode decodes encoded call data', () {
     final json = {'room_url': 'https://example.daily.co/test-room', 'token': 'abc123'};
     final encoded = base64Url.encode(utf8.encode(jsonEncode(json)));
 
-    final config = CallConfig.decode(encoded);
-    expect(config.url, Uri.parse('https://example.daily.co/test-room'));
-    expect(config.credential, 'abc123');
+    final callInit = CallInit.decode(encoded);
+    expect(callInit.url, Uri.parse('https://example.daily.co/test-room'));
+    expect(callInit.credential, 'abc123');
   });
 
-  test('CallConfig.decode handles missing credential', () {
+  test('CallInit.decode handles missing credential', () {
     final json = {'room_url': 'https://example.daily.co/test-room'};
     final encoded = base64Url.encode(utf8.encode(jsonEncode(json)));
 
-    final config = CallConfig.decode(encoded);
-    expect(config.url, Uri.parse('https://example.daily.co/test-room'));
-    expect(config.credential, isNull);
+    final callInit = CallInit.decode(encoded);
+    expect(callInit.url, Uri.parse('https://example.daily.co/test-room'));
+    expect(callInit.credential, isNull);
   });
 
-  test('CallConfig toString redacts credential', () {
+  test('CallInit toString redacts credential', () {
     final json = {'room_url': 'https://example.daily.co/test-room', 'token': 'secret-token'};
     final encoded = base64Url.encode(utf8.encode(jsonEncode(json)));
 
-    final config = CallConfig.decode(encoded);
-    expect(config.toString(), contains('***'));
-    expect(config.toString(), isNot(contains('secret-token')));
+    final callInit = CallInit.decode(encoded);
+    expect(callInit.toString(), contains('***'));
+    expect(callInit.toString(), isNot(contains('secret-token')));
   });
 
-  test('AhCallConfigFetchException wraps cause', () {
-    final exception = AhCallConfigFetchException(
+  test('AhCallInitFetchException wraps cause', () {
+    final exception = AhCallInitFetchException(
       'network error',
       StackTrace.current,
     );

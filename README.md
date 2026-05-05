@@ -2,6 +2,80 @@
 
 A Flutter SDK for Arrowhead voice-based AI agent calls. Provides a simple, stream-based API for connecting to calls, managing microphone state, and observing call lifecycle events.
 
+## How It Works
+
+1. The SDK exposes a `fetchCallInit` callback that you pass to the `init` method. This callback should point to your own backend API, which in turn calls the Arrowhead API with the required `domain_id`, `campaign_id`, customer details, and variables (if any), along with your API key. This additional layer lets you enforce your own authentication and control who can access the AI bot.
+2. The call data returned from the Arrowhead API should be passed back to the SDK via the callback's return value.
+3. Once received, the SDK joins the call and begins capturing events. When the user joins, the bot automatically starts the conversation.
+4. The SDK streams real-time state updates (`AhCallState`) — connection status, microphone state, active speaker, and participants.
+
+## Backend Integration
+
+Your backend acts as a proxy between your Flutter app and the Arrowhead API. This keeps your API key secure and lets you enforce your own authentication.
+
+### Arrowhead API
+
+**Endpoint:**
+
+```
+POST https://<arrowhead-api-host>/api/v1/public/domain/{domain_id}/campaign/{campaign_id}/initiate-call
+```
+
+**Headers:**
+
+```
+Authorization: Bearer <your-api-key>
+Content-Type: application/json
+```
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `customer_full_name` | `string` | No | Customer's full name. |
+| `external_customer_id` | `string` | Yes | Your system's customer identifier. |
+| `external_schedule_id` | `string` | Yes | Your unique reference for this call session — must be unique per campaign. |
+| `input_variables` | `object` | No | Key-value pairs for conversation context. |
+
+**Response:**
+
+```json
+{
+  "data": "<call-session-payload>"
+}
+```
+
+The `data` field contains the call session payload. Pass this string as-is to the SDK — do not parse or modify it.
+
+### Example Backend (Python / FastAPI)
+
+```python
+import httpx
+from fastapi import FastAPI, HTTPException
+
+app = FastAPI()
+
+AH_API_URL = "https://<arrowhead-api-host>"
+AH_API_KEY = "<your-api-key>"
+DOMAIN_ID = "<your-domain-id>"
+CAMPAIGN_ID = "<your-campaign-id>"
+
+@app.post("/initiate-call")
+async def initiate_call(body: dict):
+    url = f"{AH_API_URL}/api/v1/public/domain/{DOMAIN_ID}/campaign/{CAMPAIGN_ID}/initiate-call"
+    headers = {"Authorization": f"Bearer {AH_API_KEY}"}
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(url, headers=headers, json=body)
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=resp.status_code, detail=resp.text)
+
+    return resp.json()
+```
+
+Your Flutter app calls your backend, and your backend forwards the request to the Arrowhead API and returns the response as-is.
+
 ## Installation
 
 Add to your `pubspec.yaml`:
@@ -76,8 +150,8 @@ This single import gives you access to all public types:
 | `AhCallState`                | Call state model                     |
 | `AhConnectionStatus`         | Connection status enum               |
 | `AhParticipant`              | Participant model                    |
-| `FetchCallConfig`            | Callback type alias                  |
-| `AhCallConfigFetchException` | Thrown when call config fetch fails   |
+| `FetchCallInit`            | Callback type alias                  |
+| `AhCallInitFetchException` | Thrown when call initiation fetch fails   |
 
 ## Quick Start
 
@@ -85,18 +159,18 @@ This single import gives you access to all public types:
 
 ```dart
 final sdk = await AhFlutterSdk.init(
-  fetchCallConfig: () async {
+  fetchCallInit: () async {
     // Call your backend, which calls the Arrowhead API
-    // and returns the config string
+    // and returns the call data
     final response = await http.post(
-      Uri.parse('https://your-api.com/call-config'),
+      Uri.parse('https://your-api.com/initiate-call'),
     );
     return response.body;
   },
 );
 ```
 
-The `fetchCallConfig` callback is called each time `connect()` is invoked. Your backend should call the Arrowhead API and return the config string as-is — the SDK handles the rest.
+The `fetchCallInit` callback is called each time `connect()` is invoked. Your backend should call the Arrowhead API and return the call data as-is — the SDK handles the rest.
 
 ### 2. Subscribe to State
 
@@ -142,7 +216,7 @@ await sdk.disconnect();
 
 | Method | Description |
 | --- | --- |
-| `static Future<AhFlutterSdk> init({required FetchCallConfig fetchCallConfig})` | Creates and initializes the SDK. The `fetchCallConfig` callback provides the call config when `connect()` is called. |
+| `static Future<AhFlutterSdk> init({required FetchCallInit fetchCallInit})` | Creates and initializes the SDK. The `fetchCallInit` callback provides the call initiation when `connect()` is called. |
 
 #### Properties
 
@@ -155,7 +229,7 @@ await sdk.disconnect();
 
 | Method | Return Type | Description |
 | --- | --- | --- |
-| `connect()` | `Future<void>` | Calls `fetchCallConfig` and joins the call. Throws `AhCallConfigFetchException` if the callback fails. |
+| `connect()` | `Future<void>` | Calls `fetchCallInit` and joins the call. Throws `AhCallInitFetchException` if the callback fails. |
 | `disconnect()` | `Future<void>` | Leaves the call and cleans up resources. After calling this, you need to call `AhFlutterSdk.init()` again to start a new session. |
 | `mute()` | `Future<void>` | Disables the microphone. |
 | `unmute()` | `Future<void>` | Enables the microphone. |
@@ -191,15 +265,15 @@ enum AhConnectionStatus {
 }
 ```
 
-### `AhCallConfigFetchException`
+### `AhCallInitFetchException`
 
-Thrown when the `fetchCallConfig` callback fails. Contains the original error as `cause` and the `stackTrace`.
+Thrown when the `fetchCallInit` callback fails. Contains the original error as `cause` and the `stackTrace`.
 
 ```dart
 try {
   await sdk.connect();
-} on AhCallConfigFetchException catch (e) {
-  print('Failed to get call config: ${e.cause}');
+} on AhCallInitFetchException catch (e) {
+  print('Failed to get call initiation: ${e.cause}');
 }
 ```
 
@@ -235,9 +309,9 @@ class _CallPageState extends State<CallPage> {
 
   Future<void> _initSdk() async {
     final sdk = await AhFlutterSdk.init(
-      fetchCallConfig: () async {
+      fetchCallInit: () async {
         final res = await http.post(
-          Uri.parse('https://your-api.com/call-config'),
+          Uri.parse('https://your-api.com/initiate-call'),
         );
         return res.body;
       },

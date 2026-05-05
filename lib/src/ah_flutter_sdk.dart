@@ -5,10 +5,10 @@ import 'package:flutter/foundation.dart';
 
 import 'ah_call_state.dart';
 import 'ah_participant.dart';
-import 'call_config.dart';
+import 'call_init.dart';
 
 class AhFlutterSdk {
-  final FetchCallConfig _fetchCallConfig;
+  final FetchCallInit _fetchCallInit;
 
   CallClient? _callClient;
   StreamSubscription<Event>? _eventSubscription;
@@ -16,13 +16,13 @@ class AhFlutterSdk {
   final _stateController = StreamController<AhCallState>.broadcast();
   AhCallState _currentState = const AhCallState();
 
-  AhFlutterSdk._({required FetchCallConfig fetchCallConfig})
-    : _fetchCallConfig = fetchCallConfig;
+  AhFlutterSdk._({required FetchCallInit fetchCallInit})
+    : _fetchCallInit = fetchCallInit;
 
   static Future<AhFlutterSdk> init({
-    required FetchCallConfig fetchCallConfig,
+    required FetchCallInit fetchCallInit,
   }) async {
-    final sdk = AhFlutterSdk._(fetchCallConfig: fetchCallConfig);
+    final sdk = AhFlutterSdk._(fetchCallInit: fetchCallInit);
     await sdk._createClient();
     return sdk;
   }
@@ -38,21 +38,21 @@ class AhFlutterSdk {
 
     final String encoded;
     try {
-      encoded = await _fetchCallConfig();
+      encoded = await _fetchCallInit();
     } catch (e, st) {
       _updateState(
         _currentState.copyWith(
           connectionStatus: AhConnectionStatus.disconnected,
         ),
       );
-      throw AhCallConfigFetchException(e, st);
+      throw AhCallInitFetchException(e, st);
     }
 
-    final config = CallConfig.decode(encoded);
+    final callInit = CallInit.decode(encoded);
 
     await _callClient!.join(
-      url: config.url,
-      token: config.credential,
+      url: callInit.url,
+      token: callInit.credential,
       clientSettings: const ClientSettingsUpdate.set(
         inputs: InputSettingsUpdate.set(
           camera: CameraInputSettingsUpdate.set(

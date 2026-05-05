@@ -56,9 +56,9 @@ class _CallPageState extends State<CallPage> {
 
   Future<void> _initSdk() async {
     final sdk = await AhFlutterSdk.init(
-      fetchCallConfig: () async {
+      fetchCallInit: () async {
         final response = await http.post(
-          Uri.parse('$_serverUrl/call-config'),
+          Uri.parse('$_serverUrl/initiate-call'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'customer_full_name': _customerName,
