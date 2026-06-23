@@ -18,7 +18,7 @@ Your backend acts as a proxy between your Flutter app and the Arrowhead API. Thi
 **Endpoint:**
 
 ```
-POST https://<arrowhead-api-host>/api/v1/public/domain/{domain_id}/campaign/{campaign_id}/initiate-call
+POST https://<arrowhead-api-host>/api/v2/public/domain/{domain_id}/campaign/{campaign_id}/initiate-call
 ```
 
 **Headers:**
@@ -62,7 +62,7 @@ CAMPAIGN_ID = "<your-campaign-id>"
 
 @app.post("/initiate-call")
 async def initiate_call(body: dict):
-    url = f"{AH_API_URL}/api/v1/public/domain/{DOMAIN_ID}/campaign/{CAMPAIGN_ID}/initiate-call"
+    url = f"{AH_API_URL}/api/v2/public/domain/{DOMAIN_ID}/campaign/{CAMPAIGN_ID}/initiate-call"
     headers = {"Authorization": f"Bearer {AH_API_KEY}"}
 
     async with httpx.AsyncClient() as client:
