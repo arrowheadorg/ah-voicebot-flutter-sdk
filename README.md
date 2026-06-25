@@ -83,7 +83,9 @@ Add to your `pubspec.yaml`:
 ```yaml
 dependencies:
   ah_flutter_sdk:
-    path: path/to/ah_flutter_sdk
+    git:
+      url: https://github.com/arrowheadorg/ah-voicebot-flutter-sdk.git
+      ref: main
 ```
 
 Then run:
@@ -164,8 +166,10 @@ final sdk = await AhFlutterSdk.init(
     // and returns the call data
     final response = await http.post(
       Uri.parse('https://your-api.com/initiate-call'),
+      headers: {'Content-Type': 'application/json'},
     );
-    return response.body;
+    final json = jsonDecode(response.body);
+    return json['data'] as String;
   },
 );
 ```
@@ -281,6 +285,7 @@ try {
 
 ```dart
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:ah_flutter_sdk/ah_flutter_sdk.dart';
 import 'package:flutter/material.dart';
@@ -312,8 +317,10 @@ class _CallPageState extends State<CallPage> {
       fetchCallInit: () async {
         final res = await http.post(
           Uri.parse('https://your-api.com/initiate-call'),
+          headers: {'Content-Type': 'application/json'},
         );
-        return res.body;
+        final json = jsonDecode(res.body);
+        return json['data'] as String;
       },
     );
 
