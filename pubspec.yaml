@@ -3,7 +3,7 @@ description: "A Flutter SDK for Arrowhead voice-based AI agent calls."
 version: 0.0.1
 
 environment:
-  sdk: ^3.11.5
+  sdk: ">=3.8.0"
   flutter: ">=3.10.0"
 
 dependencies:
